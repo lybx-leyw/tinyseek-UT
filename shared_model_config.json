@@ -1,0 +1,18 @@
+{
+    "vocab_size": 5000,
+    "device": "cuda",
+    "n_layer": 6,             
+    "n_head": 8,             
+    "d_model": 512,           
+    "d_c": 128,               
+    "d_r": 8,                 
+    "hidden": 32,            
+    "other_experts": 384,       
+    "shared_experts": 24,      
+    "keep": 8,                
+    "ro_theta": 10000.0,
+    "dropout": 0.1,
+    "scale": 0.02,
+    "alpha": 0.01,
+    "pad_idx": 0
+}
