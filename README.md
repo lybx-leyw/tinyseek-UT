@@ -161,6 +161,28 @@ python plot.py
 
 详细实验数据请参考 `docs/technical_report.txt`
 
+### 训练曲线可视化
+
+#### Baseline (Full) 训练过程
+
+| **Loss收敛曲线** | **逐层监督损失** | **困惑度** |
+|:----------------:|:----------------:|:----------:|
+| ![Loss收敛曲线](docs/figures/full/loss_full.png) | ![逐层监督损失](docs/figures/full/loss_p_full.png) | ![困惑度](docs/figures/full/ppx_full.png) |
+
+| **有效层指数** | **学习率调度** |
+|:--------------:|:-------------:|
+| ![有效层指数](docs/figures/full/Lexp_full.png) | ![学习率调度](docs/figures/full/lr_full.png) |
+
+#### 消融实验对比
+
+| **Loss对比** | **Loss_p对比** | **困惑度对比** |
+|:------------:|:--------------:|:--------------:|
+| ![Loss对比](docs/figures/comparison/loss_comparison.png) | ![Loss_p对比](docs/figures/comparison/loss_p_comparison.png) | ![困惑度对比](docs/figures/comparison/ppx_comparison.png) |
+
+| **有效层指数对比** | **学习率对比** | **变异系数对比** |
+|:------------------:|:--------------:|:----------------:|
+| ![有效层指数对比](docs/figures/comparison/Lexp_comparison.png) | ![学习率对比](docs/figures/comparison/lr_comparison.png) | ![变异系数对比](docs/figures/comparison/cv_comparison_all.png) |
+
 ## 技术细节
 
 ### MLA (Multi-head Latent Attention)
