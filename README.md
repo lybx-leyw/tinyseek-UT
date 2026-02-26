@@ -85,15 +85,10 @@ EvidenceFlow-UT/
 │   └── pre_train_shared.py  # 预训练脚本
 ├── evaluate_agent/       # 评估相关
 │   └── evaluate_function.py # 评估函数
-├── dataset/              # 数据集
-│   └── minimind_dataset/
 ├── docs/                 # 文档
-│   ├── technical_report.txt  # 技术报告
 │   └── figures/         # 实验图表
-├── out/                  # 输出目录
 ├── train_shared.py       # 训练入口
 ├── evaluate.py           # 评估入口
-├── plot.py              # 绘图脚本
 └── shared_model_config.json  # 模型配置
 ```
 
