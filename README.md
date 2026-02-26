@@ -1,12 +1,12 @@
-# EvidenceFlow-UT - 面向循环共享层Transformer的逐层监督训练方法
+# EvidenceFlow-UT - 面向Universal Transformer的逐层监督训练方法
 
 ## 研究背景
 
-Transformer模型通过堆叠多层自注意力机制实现了强大的序列建模能力，但深层模型面临一个核心挑战：**层次化表示能力受限**——不同层往往学习到相似的表示，无法充分利用深度带来的表达能力提升。
+Universal Transformer (UT) 通过循环共享层机制实现了自适应计算深度，但面临一个核心挑战：**深度编码能力受限**——循环层往往学习到相似的表示，无法充分利用深度带来的表达能力提升。
 
-现有解决方案如层间残差、层归一化等，主要从架构设计角度优化，但缺乏对每层表示质量的显式监督。
+现有解决方案如MoEUT等，主要从架构设计角度优化（通过增大参数差异化），但缺乏对每层表示质量的显式监督。
 
-本项目基于**循环共享层Transformer（Shared-Layer Transformer）**架构，提出了一种**逐层监督损失（Layer-wise Supervision Loss, Loss_p）**，通过神经科学中的证据累积视角，为共享层Transformer的训练提供了一种新的损失引导路径。
+本项目基于 **Universal Transformer (UT)** 架构，提出了一种**逐层监督损失（Layer-wise Supervision Loss, 即先验损失Loss_p）**，通过神经科学中的证据累积视角，为UT的深度编码提供了一种新的损失引导路径。
 
 ## 核心创新：逐层监督损失（Loss_p）
 
@@ -31,8 +31,8 @@ Loss_p = Σ_i ||F_i - T||²
 ## 项目特性
 
 - **EvidenceFlow-UT**: 基于证据流动视角的逐层监督训练方法
-- **Layer-wise Supervision Loss (Loss_p)**: 通过证据累积约束引导表示学习
-- **循环共享层架构**: 使用共享的 ModelBlock 循环应用
+- **Layer-wise Supervision Loss (Loss_p)**: 通过证据累积约束引导深度编码
+- **UT架构**: 使用共享的 ModelBlock 循环应用（Universal Transformer）
 - **零推理开销**: 训练阶段仅增加少量计算，推理阶段完全透明
 - **MLA (Multi-head Latent Attention)**: 低秩键值压缩机制，降低内存占用
 - **MoE (Mixture of Experts)**: 混合专家架构，提升模型容量和效率
@@ -85,10 +85,15 @@ EvidenceFlow-UT/
 │   └── pre_train_shared.py  # 预训练脚本
 ├── evaluate_agent/       # 评估相关
 │   └── evaluate_function.py # 评估函数
+├── dataset/              # 数据集
+│   └── minimind_dataset/
 ├── docs/                 # 文档
+│   ├── technical_report.txt  # 技术报告
 │   └── figures/         # 实验图表
+├── out/                  # 输出目录
 ├── train_shared.py       # 训练入口
 ├── evaluate.py           # 评估入口
+├── plot.py              # 绘图脚本
 └── shared_model_config.json  # 模型配置
 ```
 
@@ -137,24 +142,42 @@ python plot.py
 | w/o Warm-up | 525 | 5.63 | 27.11 | 2.03 | ❌ 训练震荡 |
 | w/o Layer-wise Loss | 4191 | 16.89 | 120.04 | 12.02 | ❌ 模型坍塌 |
 
-### 核心发现
+### 核心结论
 
-1. **Warm-up机制对训练稳定性至关重要**：无Warm-up时，困惑度变异系数有12.57%的时间超过稳定阈值，导致训练震荡并提前终止。
+**两个消融实验均因训练不稳定提前终止，且最终性能显著差于基线。**
 
-2. **Loss_p约束能有效防止模型坍塌**：无Loss_p时，模型陷入局部最优，Loss_p固定在12.0左右，困惑度卡在100-120区间无法继续下降。
+#### 1. 实验状态
 
-3. **两者结合可实现稳定高效的模型训练**：Baseline实验中Loss_p从初始12.0降至0.11，困惑度收敛至7.77，EvidenceFlow的证据流动效果显著。
+- **基线 (Full)**：顺利完成 **4710** 步训练。
+- **w/o Warm-up**：严重不稳定，仅完成 **525** 步（约11%）即终止。
+- **w/o layerwise_loss**：相对稳定但性能极差，完成 **4191** 步（约89%）后终止。
+
+#### 2. 关键指标最终值对比
+
+| 指标 | 基线 (Full) | w/o Warm-up | w/o layerwise_loss |
+| :--- | :--- | :--- | :--- |
+| **交叉熵损失 (Loss)** | **2.47** | **5.63** (↑128%) | **16.89** (↑585%) |
+| **困惑度 (Perplexity)** | **7.77** | **27.11** (↑249%) | **120.04** (↑1445%) |
+| **Lexp** | 30.12 | 29.90 (持平) | **8.59** (↓71%) |
+
+#### 3. 根本原因分析
+
+- **w/o Warm-up (无预热)**：**训练震荡严重**。其困惑度（PPL）的变异系数（CV）有 **12.57%** 的时间超过稳定阈值，远高于基线的2.06%，且学习率始终固定在最大值，导致早期步数就发生梯度爆炸。
+
+- **w/o layerwise_loss (无逐层损失)**：**模型坍塌**。虽然损失曲线看似平稳（CV值极低），但交叉熵损失高达16.89，同时Lexp指标暴跌71%，表明模型输出分布被严重破坏，失去了表达能力。
+
+#### 4. 结论
+
+**Warm-up和Layer-wise Loss对于该模型的稳定训练均至关重要，缺一不可。**
 
 ### 与相关工作对比
 
 | 工作 | 解决路径 | 核心机制 | 推理开销 | 可解释性 | 实验架构 |
 |------|----------|----------|----------|----------|----------|
-| MoEUT (NeurIPS 2024) | 参数差异化 | MoE专家分工 | 增加 | 低 | 循环共享层 |
-| Relaxed Recursive (ICLR 2025) | 参数差异化 | 层间LoRA | 增加 | 低 | 循环共享层 |
+| MoEUT (NeurIPS 2024) | 参数差异化 | MoE专家分工 | 增加 | 低 | UT |
+| Relaxed Recursive (ICLR 2025) | 参数差异化 | 层间LoRA | 增加 | 低 | UT |
 | Deeply-Supervised Nets (ICML 2015) | 损失引导 | 每层分类器+交叉熵 | 无（训练后丢弃） | 中 | CNN/RNN |
-| **EvidenceFlow-UT** | **损失引导** | **证据流动MSE对齐** | **零增加** | **高** | **循环共享层TinySeek** |
-
-详细实验数据请参考 `docs/technical_report.txt`
+| **EvidenceFlow-UT** | **损失引导** | **证据流动MSE对齐** | **零增加** | **高** | **UT (TinySeek)** |
 
 ### 训练曲线可视化
 
@@ -164,9 +187,9 @@ python plot.py
 |:----------------:|:----------------:|:----------:|
 | ![Loss收敛曲线](docs/figures/full/loss_full.png) | ![逐层监督损失](docs/figures/full/loss_p_full.png) | ![困惑度](docs/figures/full/ppx_full.png) |
 
-| **有效层指数** | **学习率调度** |
+| **专家负载损失** | **学习率调度** |
 |:--------------:|:-------------:|
-| ![有效层指数](docs/figures/full/Lexp_full.png) | ![学习率调度](docs/figures/full/lr_full.png) |
+| ![专家负载损失](docs/figures/full/Lexp_full.png) | ![学习率调度](docs/figures/full/lr_full.png) |
 
 #### 消融实验对比
 
@@ -174,9 +197,9 @@ python plot.py
 |:------------:|:--------------:|:--------------:|
 | ![Loss对比](docs/figures/comparison/loss_comparison.png) | ![Loss_p对比](docs/figures/comparison/loss_p_comparison.png) | ![困惑度对比](docs/figures/comparison/ppx_comparison.png) |
 
-| **有效层指数对比** | **学习率对比** | **变异系数对比** |
+| **专家负载损失对比** | **学习率对比** | **变异系数对比** |
 |:------------------:|:--------------:|:----------------:|
-| ![有效层指数对比](docs/figures/comparison/Lexp_comparison.png) | ![学习率对比](docs/figures/comparison/lr_comparison.png) | ![变异系数对比](docs/figures/comparison/cv_comparison_all.png) |
+| ![专家负载损失对比](docs/figures/comparison/Lexp_comparison.png) | ![学习率对比](docs/figures/comparison/lr_comparison.png) | ![变异系数对比](docs/figures/comparison/cv_comparison_all.png) |
 
 ## 技术细节
 
@@ -214,9 +237,9 @@ python plot.py
 
 ## 未来方向
 
-本研究为共享层Transformer训练优化提供了一条"损失引导"的探索路径。后续计划从三个方向深化探索：
+本研究为UT训练优化提供了一条"损失引导"的探索路径。后续计划从三个方向深化探索：
 
-1. **架构扩展**：将Loss_p应用于更多类型的Transformer架构（如标准Transformer、Universal Transformer等），验证方法的泛化能力
+1. **架构扩展**：将Loss_p应用于更多类型的Transformer架构（如标准Transformer、其他UT变体等），验证方法的泛化能力
 
 2. **效率优化**：尝试稀疏监督策略，仅监督关键层，在保持收敛质量的同时优化训练效率
 
@@ -224,13 +247,13 @@ python plot.py
 
 ## 研究价值总结
 
-EvidenceFlow-UT在**循环共享层Transformer架构**上验证了逐层监督损失（Loss_p）的有效性——**以训练阶段的小幅开销，换取推理阶段的零额外负担与模型内部状态的可解释性**。这一发现为共享层Transformer训练优化提供了新的损失引导路径，也为神经科学启发下的AI模型设计提供了实践范例。
+EvidenceFlow-UT在 **Universal Transformer (UT)** 架构上验证了逐层监督损失（Loss_p）的有效性——**以训练阶段的小幅开销，换取推理阶段的零额外负担与模型内部状态的可解释性**。这一发现为UT训练优化提供了新的损失引导路径（将深度编码从架构设计转为损失引导），也为神经科学启发下的AI模型设计提供了实践范例。
 
 ### 实验范围
 
 **当前实验基于以下配置：**
-- 架构：循环共享层 TinySeek 模型（共享同一个 ModelBlock）
-- 层数：6层循环应用
+- 架构：UT（TinySeek，共享同一个 ModelBlock 循环应用）
+- 循环深度：6次
 - 注意力：MLA（Multi-head Latent Attention）
 - 前馈网络：MoE（Mixture of Experts）
 - 数据集：MiniMind 预训练数据集
@@ -238,8 +261,8 @@ EvidenceFlow-UT在**循环共享层Transformer架构**上验证了逐层监督�
 
 **尚未验证的范围：**
 - 标准Transformer架构（非共享层）
-- 深层模型（12层以上）
-- 大规模预训练任务（GPT-2/GPT-3规模）
+- 其他UT变体
+- 更大的模型规模
 - 其他数据集和任务类型
 
 ### 方法优势
