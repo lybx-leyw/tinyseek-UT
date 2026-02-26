@@ -1,4 +1,4 @@
-# EvidenceFlow-UT - 面向通用Transformer的逐层监督训练方法
+# EvidenceFlow-UT - 面向循环共享层Transformer的逐层监督训练方法
 
 ## 研究背景
 
@@ -6,7 +6,7 @@ Transformer模型通过堆叠多层自注意力机制实现了强大的序列建
 
 现有解决方案如层间残差、层归一化等，主要从架构设计角度优化，但缺乏对每层表示质量的显式监督。
 
-本项目提出了一种**逐层监督损失（Layer-wise Supervision Loss, Loss_p）**，通过神经科学中的证据累积视角，为通用Transformer的深层训练提供了一种新的损失引导路径。
+本项目基于**循环共享层Transformer（Shared-Layer Transformer）**架构，提出了一种**逐层监督损失（Layer-wise Supervision Loss, Loss_p）**，通过神经科学中的证据累积视角，为共享层Transformer的训练提供了一种新的损失引导路径。
 
 ## 核心创新：逐层监督损失（Loss_p）
 
@@ -31,8 +31,8 @@ Loss_p = Σ_i ||F_i - T||²
 ## 项目特性
 
 - **EvidenceFlow-UT**: 基于证据流动视角的逐层监督训练方法
-- **Layer-wise Supervision Loss (Loss_p)**: 通过证据累积约束引导深层表示学习
-- **通用架构兼容**: 适用于标准Transformer、循环共享层Transformer等各种架构
+- **Layer-wise Supervision Loss (Loss_p)**: 通过证据累积约束引导表示学习
+- **循环共享层架构**: 使用共享的 ModelBlock 循环应用
 - **零推理开销**: 训练阶段仅增加少量计算，推理阶段完全透明
 - **MLA (Multi-head Latent Attention)**: 低秩键值压缩机制，降低内存占用
 - **MoE (Mixture of Experts)**: 混合专家架构，提升模型容量和效率
@@ -152,12 +152,12 @@ python plot.py
 
 ### 与相关工作对比
 
-| 工作 | 解决路径 | 核心机制 | 推理开销 | 可解释性 | 适用架构 |
+| 工作 | 解决路径 | 核心机制 | 推理开销 | 可解释性 | 实验架构 |
 |------|----------|----------|----------|----------|----------|
 | MoEUT (NeurIPS 2024) | 参数差异化 | MoE专家分工 | 增加 | 低 | 循环共享层 |
 | Relaxed Recursive (ICLR 2025) | 参数差异化 | 层间LoRA | 增加 | 低 | 循环共享层 |
 | Deeply-Supervised Nets (ICML 2015) | 损失引导 | 每层分类器+交叉熵 | 无（训练后丢弃） | 中 | CNN/RNN |
-| **EvidenceFlow-UT** | **损失引导** | **证据流动MSE对齐** | **零增加** | **高** | **通用Transformer** |
+| **EvidenceFlow-UT** | **损失引导** | **证据流动MSE对齐** | **零增加** | **高** | **循环共享层TinySeek** |
 
 详细实验数据请参考 `docs/technical_report.txt`
 
@@ -219,9 +219,9 @@ python plot.py
 
 ## 未来方向
 
-本研究为Transformer训练优化开辟了一条"损失引导"的新路径。后续计划从三个方向深化探索：
+本研究为共享层Transformer训练优化提供了一条"损失引导"的探索路径。后续计划从三个方向深化探索：
 
-1. **架构扩展**：将Loss_p应用于更大规模的Transformer（如Llama、GPT系列），验证方法的泛化能力
+1. **架构扩展**：将Loss_p应用于更多类型的Transformer架构（如标准Transformer、Universal Transformer等），验证方法的泛化能力
 
 2. **效率优化**：尝试稀疏监督策略，仅监督关键层，在保持收敛质量的同时优化训练效率
 
@@ -229,22 +229,29 @@ python plot.py
 
 ## 研究价值总结
 
-EvidenceFlow-UT证明了逐层监督损失（Loss_p）对通用Transformer训练的有效性——**以训练阶段的小幅开销，换取推理阶段的零额外负担与模型内部状态的可解释性**。这一发现为Transformer训练优化提供了新的损失引导路径，也为神经科学启发下的AI模型设计提供了实践范例。
+EvidenceFlow-UT在**循环共享层Transformer架构**上验证了逐层监督损失（Loss_p）的有效性——**以训练阶段的小幅开销，换取推理阶段的零额外负担与模型内部状态的可解释性**。这一发现为共享层Transformer训练优化提供了新的损失引导路径，也为神经科学启发下的AI模型设计提供了实践范例。
 
-### 适用范围
+### 实验范围
 
-本方法适用于：
-- 标准Transformer架构（无需参数共享）
-- 深层Transformer（12层以上）
-- 循环共享层Transformer（如Universal Transformer）
-- 各种规模的预训练任务（从GPT-2规模的117M到GPT-3规模的175B）
+**当前实验基于以下配置：**
+- 架构：循环共享层 TinySeek 模型（共享同一个 ModelBlock）
+- 层数：6层循环应用
+- 注意力：MLA（Multi-head Latent Attention）
+- 前馈网络：MoE（Mixture of Experts）
+- 数据集：MiniMind 预训练数据集
+- 词汇量：5000
+
+**尚未验证的范围：**
+- 标准Transformer架构（非共享层）
+- 深层模型（12层以上）
+- 大规模预训练任务（GPT-2/GPT-3规模）
+- 其他数据集和任务类型
 
 ### 方法优势
 
-1. **通用性**：不依赖特定架构，可应用于任何Transformer变体
-2. **轻量级**：无需修改模型结构，仅增加训练阶段计算开销
-3. **零推理开销**：推理阶段完全透明，不影响部署效率
-4. **可解释**：Loss_p值直接反映各层表示质量
+1. **轻量级**：无需修改模型结构，仅增加训练阶段计算开销
+2. **零推理开销**：推理阶段完全透明，不影响部署效率
+3. **可解释**：Loss_p值直接反映各层表示质量
 
 ## 许可证
 
