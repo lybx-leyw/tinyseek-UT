@@ -59,6 +59,22 @@ Loss_p = Σ_i ||F_i - T||²
 }
 ```
 
+## 数据集信息
+
+- **名称**：gongjy/minimind_dataset
+- **来源链接**：https://www.modelscope.cn/datasets/gongjy/minimind_dataset/files
+- **许可证**：Apache License 2.0
+
+### 遵守原始许可证
+
+本数据集的使用遵循 Apache License 2.0 的规定。
+根据许可证要求，我们在此声明：
+
+1. 我们保留了原始数据集中包含的所有版权、专利、商标及归属声明。
+2. 本项目的根目录下附有 Apache License 2.0 的完整副本。
+
+完整的许可证条款请参阅项目根目录下的 [LICENSE](./LICENSE) 文件，或访问：http://www.apache.org/licenses/LICENSE-2.0。
+
 ## 环境要求
 
 - Python 3.x
@@ -273,7 +289,13 @@ EvidenceFlow-UT在 **Universal Transformer (UT)** 架构上验证了逐层监督
 
 ## 许可证
 
-本项目仅供研究使用。
+本项目采用 Apache License 2.0 许可证。
+
+完整的许可证条款请参阅项目根目录下的 [LICENSE](./LICENSE) 文件，或访问：http://www.apache.org/licenses/LICENSE-2.0。
+
+### 数据集许可证
+
+本项目使用的 gongjy/minimind_dataset 数据集同样遵循 Apache License 2.0 许可证。我们保留所有原始的版权、专利、商标及归属声明。
 
 ## 贡献
 
